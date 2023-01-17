@@ -11,7 +11,7 @@ leftAngle = df['Col1'].to_list()
 rightAngle = df['Col2'].to_list()
 contactLength = df['Col3'].to_list()
 
-fig, (ax1, ax2) = plt.subplots(2, gridspec_kw={'height_ratios': [3, 1]}, sharex=True)
+fig, (ax1, ax2) = plt.subplots(2, gridspec_kw={'height_ratios': [3, 1]}, sharex=True, figsize=(18, 8))
 line1, = ax1.plot(time, leftAngle, label='Left angle')
 line2, = ax1.plot(time, rightAngle, label='Right angle')
 line3, = ax2.plot(time, [int(contactLength_) for contactLength_ in contactLength],label='length of droplet contact zone')
@@ -30,3 +30,5 @@ amplitude = (int(GLOB_PATH[-8:-6]) / 100) * AMPLITUDE
 ax1.set_title(str('Frequency: ' + str(frequency) + '[Hz]    ' + 'Amplitude: ' + str(amplitude) + '[mm]'))
 
 plt.show()
+fig.set
+fig.savefig(str(GLOB_PATH + '.png'), dpi=100)
