@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 from pathlib import Path
 from PIL import Image
 import glob
@@ -9,8 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shutil
 import os
-from scipy.interpolate import interp1d, splev, splprep, splrep, BSpline
-
 
 def printText(image, value, org, fontScale):
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -144,18 +141,19 @@ def interpolate_spline(path):
 
     p1 = np.array([x_left[np.argmax(y_left)], max(y_left)])
     p2 = p1 + np.array([line_len * np.cos(angle_left), -line_len * np.sin(angle_left)])
-    cv2.line(splineImg, (p1[0], p1[1]),(round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
 
     p1 = np.array([x_right[np.argmax(y_right)], max(y_right)])
     p2 = p1 + np.array([-line_len * np.cos(angle_right), -line_len * np.sin(angle_right)])
-    cv2.line(splineImg, (p1[0], p1[1]),(round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref-100:x_ref + 400])
+    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref:x_ref + 600])
 
-    return [math.degrees(angle_left), math.degrees(angle_right)]
+    return [math.degrees(angle_left), math.degrees(angle_right),
+            x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
 
 
 def make_gif(frame_folder):
@@ -174,29 +172,29 @@ def main():
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a20_f100z"
+    GLOB_PATH = "D:/praca_magisterska/a10_f100z"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
 
     angleLeft = []
     angleRight = []
+    contactLength = []
 
     print("\nConverting images:")
     for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
         if frame[i] % 2 == 0 and frame[i] < 2002:
             angleLeft.append(interpolate_spline(str(paths[i]))[0])
             angleRight.append(interpolate_spline(str(paths[i]))[1])
+            contactLength.append(interpolate_spline(str(paths[i]))[2])
 
     time = [frame_/FRAME_RATE for frame_ in frame]
 
-    line1, = plt.plot(time[1:len(frame):2], angleLeft, label='Left angle')
-    line2, = plt.plot(time[1:len(frame):2], angleRight, label='Right angle')
-    plt.legend(handles=[line1, line2])
+    # Csv writer
+    import pandas as pd
+    df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
+    df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
 
-    plt.ylabel("Angle [degree]")
-    plt.xlabel("time [s]")
-    # plt.show()
 
 if __name__ == "__main__":
     main()
