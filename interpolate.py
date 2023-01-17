@@ -78,15 +78,6 @@ def interpolate_spline(path):
     x = (pixels[:, 1])
     y = (pixels[:, 0])
 
-    # Detecting X coordinate for Y_ground
-    y = np.asarray(y)
-    x = np.asarray(x)
-    X_GROUND = np.argwhere(y == GROUND_HEIGHT - 1)
-    if len(X_GROUND) > 2:
-        X_GROUND[0] = X_GROUND[0]
-        X_GROUND[1] = X_GROUND[-1]
-        X_GROUND = X_GROUND[0:2]
-
     # Selecting set of points on which the spline will be spanned
     x, y = zip(*sorted(zip(x, y)))
 
@@ -115,8 +106,6 @@ def interpolate_spline(path):
     idx_right = np.where(x_select > x_split)
     y_right = y_select[idx_right]
     x_right = x_select[idx_right]
-
-    # f =interp1d(y_left, x_left)
 
 
     z_left = np.polyfit(y_left, x_left, 2)
@@ -161,10 +150,12 @@ def interpolate_spline(path):
     p2 = p1 + np.array([-line_len * np.cos(angle_right), -line_len * np.sin(angle_right)])
     cv2.line(splineImg, (p1[0], p1[1]),(round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
 
-    printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
+    # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, :])
+    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref-100:x_ref + 400])
+
+    return [math.degrees(angle_left), math.degrees(angle_right)]
 
 
 def make_gif(frame_folder):
@@ -176,26 +167,40 @@ def make_gif(frame_folder):
 
 
 def main():
-    frame_rate = 2000
+    FRAME_RATE = 5400
     frame = []
     paths = []
 
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a10_f135_z"
+    GLOB_PATH = "D:/praca_magisterska/a20_f100z"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
 
+    angleLeft = []
+    angleRight = []
+
     print("\nConverting images:")
     for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
-        if frame[i] % 1 == 0 and frame[i]> 200 and frame[i] < 1000:
-            interpolate_spline(str(paths[i]))
+        if frame[i] % 2 == 0 and frame[i] < 2002:
+            angleLeft.append(interpolate_spline(str(paths[i]))[0])
+            angleRight.append(interpolate_spline(str(paths[i]))[1])
 
+    time = [frame_/FRAME_RATE for frame_ in frame]
+
+    line1, = plt.plot(time[1:len(frame):2], angleLeft, label='Left angle')
+    line2, = plt.plot(time[1:len(frame):2], angleRight, label='Right angle')
+    plt.legend(handles=[line1, line2])
+
+    plt.ylabel("Angle [degree]")
+    plt.xlabel("time [s]")
+    # plt.show()
 
 if __name__ == "__main__":
     main()
     make_gif("D:/praca_magisterska/conv")
 
 
+#TODO: view calibration
