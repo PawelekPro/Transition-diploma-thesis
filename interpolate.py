@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shutil
 import os
+from scipy.fft import fft, ifft, fftfreq
 
 def printText(image, value, org, fontScale):
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -149,7 +150,7 @@ def interpolate_spline(path):
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
 
-    path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
+    path_to_save = 'D:/Magisterka/pomiary/conv/' + path[-23:]
     cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref:x_ref + 600])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
@@ -169,10 +170,10 @@ def main():
     frame = []
     paths = []
 
-    shutil.rmtree('D:/praca_magisterska/conv')
-    os.mkdir('D:/praca_magisterska/conv')
+    shutil.rmtree('D:/Magisterka/pomiary/conv')
+    os.mkdir('D:/Magisterka/pomiary/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a10_f100z"
+    GLOB_PATH = "D:/Magisterka/pomiary/a10_f100z"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
@@ -190,15 +191,23 @@ def main():
 
     time = [frame_/FRAME_RATE for frame_ in frame]
 
+
+
     # Csv writer
     import pandas as pd
     df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
     df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
 
+    angle_left = np.array(angleLeft)
+    angle_right = np.array(angleRight)
+    t = np.linspace(0, len(angle_left), len(angle_left)) /5400
+    yf = fft(angle_left)
+    xf = fftfreq(len(angle_left),t[0])
+    plt.plot(xf,yf, 'o')
 
 if __name__ == "__main__":
     main()
-    make_gif("D:/praca_magisterska/conv")
+    make_gif("D:/Magisterka/pomiary/conv")
 
 
 #TODO: view calibration
