@@ -191,19 +191,27 @@ def main():
 
     time = [frame_/FRAME_RATE for frame_ in frame]
 
-
-
     # Csv writer
     import pandas as pd
     df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
     df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
 
+    case_name = 'a10_f100z'
+
+
     angle_left = np.array(angleLeft)
     angle_right = np.array(angleRight)
-    t = np.linspace(0, len(angle_left), len(angle_left)) /5400
-    yf = fft(angle_left)
-    xf = fftfreq(len(angle_left),t[0])
-    plt.plot(xf,yf, 'o')
+    yf = fft(angle_left) * 0.02137
+    xf = fftfreq(len(angle_left),time[0])
+    ids = np.argwhere(yf > 5)
+    x = np.array(xf[ids])
+    y = np.array(yf[ids].real)
+    plt.plot(x, y, 'o')
+    plt.grid()
+    plt.xlabel('frequency [Hz]')
+    plt.ylabel('Amplitude [mm]')
+    plt.title('FFT analysis for case' + case_name)
+    plt.savefig(case_name + '_fft_plot.png')
 
 if __name__ == "__main__":
     main()
