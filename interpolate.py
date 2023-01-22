@@ -105,24 +105,10 @@ def interpolate_spline(path):
     y_right = y_select[idx_right]
     x_right = x_select[idx_right]
 
-
     z_left = np.polyfit(y_left, x_left, 2)
     p_left = np.poly1d(z_left)
-
     z_right = np.polyfit(y_right, x_right, 2)
     p_right = np.poly1d(z_right)
-
-    # plot polynomials
-    # x_approx_left = np.linspace(min(y_left), max(y_left), 100)
-    # x_approx_right = np.linspace(min(y_right), max(y_right), 100)
-    # plt.plot(x_left, y_left, 'o', label='Data points')
-    # plt.plot(x_right, y_right, 'o', label='Data points')
-    # plt.plot(p_left(x_approx_left), x_approx_left, label='approx')
-    # plt.plot(p_right(x_approx_right), x_approx_right, label='approx')
-    # plt.ylim(max(y_select), min(y_select) - 5)
-    # ax = plt.gca()
-    # ax.set_aspect('equal', adjustable='box')
-    # plt.draw()
 
     # calculate derivatives and use them to get the angle
     dp_left = np.polyder(p_left, 1)
@@ -157,10 +143,10 @@ def interpolate_spline(path):
             x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
 
 
-def make_gif(frame_folder):
+def make_gif(frame_folder, case_name):
     frames = [Image.open(image) for image in glob.glob(f"{frame_folder}/*.png")]
     frame_one = frames[0]
-    path_to_save_gif = "anim_001.gif"
+    path_to_save_gif = case_name + '_anim.gif'
     frame_one.save(str(path_to_save_gif), format="GIF", append_images=frames,
                    save_all=True, duration=100, loop=0)
 
@@ -170,52 +156,62 @@ def main():
     frame = []
     paths = []
 
-    shutil.rmtree('D:/Magisterka/pomiary/conv')
-    os.mkdir('D:/Magisterka/pomiary/conv')
+    pomiary_path = 'D:/Magisterka/pomiary'
 
-    GLOB_PATH = "D:/Magisterka/pomiary/a10_f100z"
-    for path in Path(GLOB_PATH).glob("*.png"):
-        frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
-        paths.append(str(path))
+    exp_paths = os.listdir(pomiary_path)
+    exp_paths.pop()
 
-    angleLeft = []
-    angleRight = []
-    contactLength = []
+    for i in exp_paths:
 
-    print("\nConverting images:")
-    for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
-        if frame[i] % 2 == 0 and frame[i] < 2002:
-            angleLeft.append(interpolate_spline(str(paths[i]))[0])
-            angleRight.append(interpolate_spline(str(paths[i]))[1])
-            contactLength.append(interpolate_spline(str(paths[i]))[2])
+        case_name = i
+        print('analysing case: ' + case_name + '...\n')
 
-    time = [frame_/FRAME_RATE for frame_ in frame]
+        shutil.rmtree(pomiary_path + '/conv')
+        os.mkdir(pomiary_path + '/conv')
 
-    # Csv writer
-    import pandas as pd
-    df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
-    df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
+        GLOB_PATH = pomiary_path + '/' + case_name
+        for path in Path(GLOB_PATH).glob("*.png"):
+            frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
+            paths.append(str(path))
 
-    case_name = 'a10_f100z'
+        angleLeft = []
+        angleRight = []
+        contactLength = []
 
+        print("\nConverting images:")
+        for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
+            if frame[i] % 2 == 0 and frame[i] < 2002:
+                angleLeft.append(interpolate_spline(str(paths[i]))[0])
+                angleRight.append(interpolate_spline(str(paths[i]))[1])
+                contactLength.append(interpolate_spline(str(paths[i]))[2])
 
-    angle_left = np.array(angleLeft)
-    angle_right = np.array(angleRight)
-    yf = fft(angle_left) * 0.02137
-    xf = fftfreq(len(angle_left),time[0])
-    ids = np.argwhere(yf > 5)
-    x = np.array(xf[ids])
-    y = np.array(yf[ids].real)
-    plt.plot(x, y, 'o')
-    plt.grid()
-    plt.xlabel('frequency [Hz]')
-    plt.ylabel('Amplitude [mm]')
-    plt.title('FFT analysis for case' + case_name)
-    plt.savefig(case_name + '_fft_plot.png')
+        time = [frame_/FRAME_RATE for frame_ in frame]
+
+        # Csv writer
+        import pandas as pd
+        df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
+        df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
+
+        angle_left = np.array(angleLeft)
+        angle_right = np.array(angleRight)
+        yf = fft(angle_left) * 0.02137
+        xf = fftfreq(len(angle_left),time[0])
+        ids = np.argwhere(yf > 5)
+        x = np.array(xf[ids])
+        y = np.array(yf[ids].real)
+        plt.plot(x, y, 'o')
+        plt.grid()
+        plt.xlabel('frequency [Hz]')
+        plt.ylabel('Amplitude [mm]')
+        plt.title('FFT analysis for case' + case_name)
+        plt.savefig(case_name + '_fft_plot.png')
+        plt.clf()
+
+        make_gif(pomiary_path + '/conv', case_name)
 
 if __name__ == "__main__":
     main()
-    make_gif("D:/Magisterka/pomiary/conv")
+   # make_gif("D:/Magisterka/pomiary/conv")
 
 
 #TODO: view calibration
