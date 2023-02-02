@@ -9,34 +9,80 @@ import numpy as np
 import shutil
 import os
 
+
+def draw_ellipse(
+        img, center, axes, angle,
+        startAngle, endAngle, color,
+        thickness=1, lineType=cv2.LINE_AA, shift=10):
+    # uses the shift to accurately get sub-pixel resolution for arc
+    center = (
+        int(round(center[0] * 2 ** shift)),
+        int(round(center[1] * 2 ** shift))
+    )
+    axes = (
+        int(round(axes[0] * 2 ** shift)),
+        int(round(axes[1] * 2 ** shift))
+    )
+    return cv2.ellipse(
+        img, center, axes, angle,
+        startAngle, endAngle, color,
+        thickness, lineType, shift)
+
 def printText(image, value, org, fontScale):
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    color = 255
+    color = 0
     # Line thickness of 1 px
     thickness = 1
-    if value[0] == 0:
-        image = cv2.putText(image, "Left angle: None", (org[0], org[1]), font,
-                            fontScale, color, thickness, cv2.LINE_AA)
-    else:
-        image = cv2.putText(image, "Left angle: %.2f" % value[0], (org[0], org[1]), font,
+    image = cv2.putText(image, "Measured data:", (org[0], org[1]), font,
                         fontScale, color, thickness, cv2.LINE_AA)
-    if value[1] == 0:
-        image = cv2.putText(image, "Right angle: None", (org[0], org[1] + 16), font,
+
+    image = cv2.putText(image, "Left angle [deg]: %.2f" % value[0], (org[0], org[1]+20), font,
                             fontScale, color, thickness, cv2.LINE_AA)
-    else:
-        image = cv2.putText(image, "Right angle: %.2f" % value[1], (org[0], org[1] + 16), font,
+
+    image = cv2.putText(image, "Right angle [deg]: %.2f" % value[1], (org[0], org[1]+42), font,
                             fontScale, color, thickness, cv2.LINE_AA)
     return image
 
 
+def get_sub(x):
+    normal = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-=()"
+    sub_s = "ₐ₈CDₑբGₕᵢⱼₖₗₘₙₒₚQᵣₛₜᵤᵥwₓᵧZₐ♭꜀ᑯₑբ₉ₕᵢⱼₖₗₘₙₒₚ૧ᵣₛₜᵤᵥwₓᵧ₂₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎"
+    res = x.maketrans(''.join(normal), ''.join(sub_s))
+    return x.translate(res)
 
-def interpolate_spline(path):
 
+def signature(image, origin, font_scale):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    color = 0
+    # Line thickness of 1 px
+    thickness = 1
+
+    image = cv2.putText(image, "Measurement date: 09.01.2023", (origin[0], origin[1]), font,
+                        font_scale, color, thickness, cv2.LINE_AA)
+    image = cv2.putText(image, "Frame rate: 5400 fps", (origin[0], origin[1] + 20), font,
+                        font_scale, color, thickness, cv2.LINE_AA)
+    return image
+
+
+def drawCSYS(image, org, thickness, scale, color, optional_text=""):
+    start_point = (org[0], org[1])
+    x_end_point = (org[0], org[1] - int(scale * 50))
+    y_end_point = (org[0] + int(scale * 50), org[1])
+    image = cv2.arrowedLine(image, start_point, x_end_point, color, thickness, tipLength=0.2)
+    image = cv2.arrowedLine(image, start_point, y_end_point, color, thickness, tipLength=0.2)
+
+    if len(optional_text) != 0:
+        image = cv2.putText(image, "%s" % optional_text,
+                            (org[0] - int(scale*25), org[1] + int(scale*15)), cv2.FONT_HERSHEY_SIMPLEX, scale * 0.4, 0, 1, cv2.LINE_AA)
+    return image
+
+
+def interpolate_spline(path, glob_path):
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
 
     """BINARY TRESHOLDING"""
-    _, thresh = cv2.threshold(img, 20, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(img, 30, 255, cv2.THRESH_BINARY)
     thresh = 255 - thresh
 
     thresh_reference = np.zeros_like(img)
@@ -48,8 +94,7 @@ def interpolate_spline(path):
     thresh_reference[0:image_cutting_size, :] = thresh[0:image_cutting_size, :]
     thresh_object[image_cutting_size:len(thresh), :] = thresh[image_cutting_size:len(thresh), :]
 
-
-    GROUND_HEIGHT = 860
+    GROUND_HEIGHT = 865
 
     # cutting out everything below the plate
     thresh_object[GROUND_HEIGHT + 1:len(output_object), :] = 0
@@ -83,10 +128,12 @@ def interpolate_spline(path):
     y_select = np.asarray(y_select)
     x_select = np.asarray(x_select)
 
+    # Obrobka zdjec do raportu
+    splineImg = np.zeros_like(img)
     # Drawing set of selected points
     checkImg = np.zeros_like(img)
     for i in range(0, len(x_select)):
-        checkImg = cv2.circle(checkImg, (x_select[i], y_select[i]), radius=1, color=255, thickness=-1)
+        splineImg = cv2.circle(splineImg, (x_select[i], y_select[i]), radius=1, color=255, thickness=-1)
 
     checkImg[GROUND_HEIGHT, :] = 125
 
@@ -103,7 +150,6 @@ def interpolate_spline(path):
     idx_right = np.where(x_select > x_split)
     y_right = y_select[idx_right]
     x_right = x_select[idx_right]
-
 
     z_left = np.polyfit(y_left, x_left, 2)
     p_left = np.poly1d(z_left)
@@ -125,32 +171,67 @@ def interpolate_spline(path):
 
     # calculate derivatives and use them to get the angle
     dp_left = np.polyder(p_left, 1)
-    angle_left = np.pi/2 + np.arctan(dp_left(max(y_left) - 1))
+    angle_left = np.pi / 2 + np.arctan(dp_left(max(y_left) - 1))
 
     dp_right = np.polyder(p_right, 1)
-    angle_right = np.pi - (np.pi/2 + np.arctan(dp_right(max(y_right) - 1)))
+    angle_right = np.pi - (np.pi / 2 + np.arctan(dp_right(max(y_right) - 1)))
 
     # draw contour
-    splineImg = np.zeros_like(img)
+
     splineImg[GROUND_HEIGHT, :] = 125
-    cv2.drawContours(splineImg, contours_object, -1, 125, 1)
+    cv2.drawContours(splineImg, contours_object, -1, 255, 1)
 
     # draw tangent lines
-    line_len = 100
+    line_len = 150
     line_thickness = 1
 
+    img = cv2.imread(path, cv2.IMREAD_COLOR)
+    img[GROUND_HEIGHT, :] = 125
     p1 = np.array([x_left[np.argmax(y_left)], max(y_left)])
     p2 = p1 + np.array([line_len * np.cos(angle_left), -line_len * np.sin(angle_left)])
-    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
 
     p1 = np.array([x_right[np.argmax(y_right)], max(y_right)])
     p2 = p1 + np.array([-line_len * np.cos(angle_right), -line_len * np.sin(angle_right)])
-    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 	255, thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
+    # test_img = cv2.bitwise_not(splineImg)
+    # cv2.imshow('test_im', test_img)
+    # cv2.waitKey(0)
+
+    # Obrobka zdjec do raportu
+    splineImg = cv2.bitwise_not(splineImg)
+    signature(splineImg, [x_ref - 40, GROUND_HEIGHT - 330], 0.5)
+    printText(splineImg, [math.degrees(angle_left), math.degrees(angle_right)], [x_ref + 340, GROUND_HEIGHT - 330], 0.5)
+    drawCSYS(splineImg, [x_ref + 235, GROUND_HEIGHT], 2, 1, 40, "(x0,y0)")
+    splineImg = cv2.rectangle(splineImg, [x_ref-45,GROUND_HEIGHT+65], [x_ref + 545,GROUND_HEIGHT-345], 0, 1)
+    draw_ellipse(splineImg, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, 50)
+    draw_ellipse(splineImg, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, 50)
+    splineImg = cv2.putText(splineImg, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, 0, 1, cv2.LINE_AA)
+    splineImg = cv2.putText(splineImg, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, 0, 1, cv2.LINE_AA)
+
+    GLOB_PATH = str(glob_path)
+    PERIOD = 50e-3  # [s]
+    BASE_FREQ = 1 / PERIOD  # [Hz]
+    AMPLITUDE = 10  # [mm]
+    ratio = GLOB_PATH[-4:-1]
+    frequency = BASE_FREQ * (int(ratio) / 100)
+    amplitude = (int(GLOB_PATH[-8:-6]) / 100) * AMPLITUDE
+    cv2.putText(splineImg, str('Frequency: ' + str("{:.2f}".format(frequency)) + ' [Hz]'), [x_ref - 40, GROUND_HEIGHT - 290], cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, 0, 1, cv2.LINE_AA)
+    cv2.putText(splineImg, str('Amplitude: ' + str(amplitude) + ' [mm]'),
+                [x_ref - 40, GROUND_HEIGHT - 270], cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, 0, 1, cv2.LINE_AA)
+    cv2.putText(splineImg, 'Frame number: %d' % int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]),
+                [x_ref - 40, GROUND_HEIGHT - 250], cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, 0, 1, cv2.LINE_AA)
+
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref:x_ref + 600])
+    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 550])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
             x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
@@ -172,7 +253,7 @@ def main():
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a10_f100z"
+    GLOB_PATH = "D:/praca_magisterska/a10_f120z"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
@@ -184,11 +265,11 @@ def main():
     print("\nConverting images:")
     for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
         if frame[i] % 2 == 0 and frame[i] < 2002:
-            angleLeft.append(interpolate_spline(str(paths[i]))[0])
-            angleRight.append(interpolate_spline(str(paths[i]))[1])
-            contactLength.append(interpolate_spline(str(paths[i]))[2])
+            angleLeft.append(interpolate_spline(str(paths[i]), GLOB_PATH)[0])
+            angleRight.append(interpolate_spline(str(paths[i]), GLOB_PATH)[1])
+            contactLength.append(interpolate_spline(str(paths[i]), GLOB_PATH)[2])
 
-    time = [frame_/FRAME_RATE for frame_ in frame]
+    time = [frame_ / FRAME_RATE for frame_ in frame]
 
     # Csv writer
     import pandas as pd
@@ -200,5 +281,4 @@ if __name__ == "__main__":
     main()
     make_gif("D:/praca_magisterska/conv")
 
-
-#TODO: view calibration
+# TODO: view calibration
