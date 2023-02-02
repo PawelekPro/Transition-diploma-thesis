@@ -229,6 +229,11 @@ def interpolate_spline(path, glob_path):
                 [x_ref - 40, GROUND_HEIGHT - 250], cv2.FONT_HERSHEY_SIMPLEX,
                 0.5, 0, 1, cv2.LINE_AA)
 
+    cv2.line(splineImg, (x_obj, GROUND_HEIGHT), (x_obj, GROUND_HEIGHT + 43) , 0, thickness=1)
+    cv2.line(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT), (x_obj+w_obj-1, GROUND_HEIGHT + 43) , 0, thickness=1)
+    cv2.arrowedLine(splineImg, (x_obj, GROUND_HEIGHT + 40), (x_obj+w_obj-1, GROUND_HEIGHT+40), 0, 1,tipLength=0.03)
+    cv2.arrowedLine(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT+40), (x_obj, GROUND_HEIGHT + 40), 0, 1, tipLength=0.03)
+
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
     cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 550])
