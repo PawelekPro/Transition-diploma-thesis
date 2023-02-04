@@ -1,10 +1,9 @@
-import glob
 from pathlib import Path
-from matplotlib import cm
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fft, ifft, fftfreq, rfft
+from scipy.fft import fft, fftfreq
 import pandas as pd
+
 
 def FFTPlotsCreate(path):
     PERIOD = 50e-3  # [s]
@@ -27,7 +26,7 @@ def FFTPlotsCreate(path):
     yf = fft(angle_left) / len(angle_left)
     yf = abs(yf)
     xf = fftfreq(len(angle_left), time[0] * 2) / BASE_FREQ
-    #ids = np.argwhere(yf > 0.1)
+    # ids = np.argwhere(yf > 0.1)
     # y = yf[ids]
     # x = xf[ids]
 
@@ -42,6 +41,7 @@ def FFTPlotsCreate(path):
     # plt.ylim(0, 20)
     plt.savefig('FFTPlots/' + str(case_name + '_fft_plot.png'))
     plt.close()
+
 
 def find_dom_parameters(path):
     PERIOD = 50e-3  # [s]
@@ -100,6 +100,7 @@ def main():
     plt.suptitle('Left angle', size=16)
     plt.grid()
     plt.show()
+
 
 if __name__ == "__main__":
     main()

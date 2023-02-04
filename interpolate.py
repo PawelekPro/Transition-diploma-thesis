@@ -4,7 +4,6 @@ from PIL import Image
 import glob
 import math
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
 import shutil
 import os
@@ -158,16 +157,21 @@ def interpolate_spline(path, glob_path):
     p_right = np.poly1d(z_right)
 
     # plot polynomials
+    # plt.figure(figsize=(16, 7))
     # x_approx_left = np.linspace(min(y_left), max(y_left), 100)
     # x_approx_right = np.linspace(min(y_right), max(y_right), 100)
-    # plt.plot(x_left, y_left, 'o', label='Data points')
-    # plt.plot(x_right, y_right, 'o', label='Data points')
-    # plt.plot(p_left(x_approx_left), x_approx_left, label='approx')
-    # plt.plot(p_right(x_approx_right), x_approx_right, label='approx')
-    # plt.ylim(max(y_select), min(y_select) - 5)
-    # ax = plt.gca()
-    # ax.set_aspect('equal', adjustable='box')
-    # plt.draw()
+    # plt.plot(x, y, marker='.', color='dodgerblue', label='Droplet shape (discrete)', markersize='8')
+    # plt.plot(p_left(x_approx_left), x_approx_left, label='Left polynomial', color='red', linewidth=2)
+    # plt.plot(p_right(x_approx_right), x_approx_right, label='Right polynomial', color='black', linewidth=2)
+    # plt.ylim(max(y), 720)
+    # plt.xlim(min(x) - 20, max(x) + 20)
+    # plt.plot([min(x) - 20, max(x)],[820, 820], linewidth=1, color='black')
+    # plt.legend(loc="upper right")
+    # plt.xlabel("X coordinate [pixels]", size=14)
+    # plt.ylabel("Y coordinate [pixels]", size=14)
+    # plt.grid()
+    # plt.savefig( str('approx/' 'approx' + str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5] +'.png'), dpi=100)
+    # plt.close()
 
     # calculate derivatives and use them to get the angle
     dp_left = np.polyder(p_left, 1)
@@ -183,17 +187,24 @@ def interpolate_spline(path, glob_path):
 
     # draw tangent lines
     line_len = 150
-    line_thickness = 1
+    line_thickness = 2
 
     img = cv2.imread(path, cv2.IMREAD_COLOR)
     img[GROUND_HEIGHT, :] = 125
     p1 = np.array([x_left[np.argmax(y_left)], max(y_left)])
     p2 = p1 + np.array([line_len * np.cos(angle_left), -line_len * np.sin(angle_left)])
-    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
+    cv2.line(img, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), (0,0,255), thickness=line_thickness)
 
     p1 = np.array([x_right[np.argmax(y_right)], max(y_right)])
     p2 = p1 + np.array([-line_len * np.cos(angle_right), -line_len * np.sin(angle_right)])
-    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
+    cv2.line(img, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), (0,0,255), thickness=line_thickness)
+
+    draw_ellipse(img, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, (0,0,255))
+    draw_ellipse(img, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, (0,0,255))
+    img = cv2.putText(img, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (255,255,255), 1, cv2.LINE_AA)
+    img = cv2.putText(img, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (255,255,255), 1, cv2.LINE_AA)
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
     # test_img = cv2.bitwise_not(splineImg)
@@ -201,42 +212,44 @@ def interpolate_spline(path, glob_path):
     # cv2.waitKey(0)
 
     # Obrobka zdjec do raportu
-    splineImg = cv2.bitwise_not(splineImg)
-    signature(splineImg, [x_ref - 40, GROUND_HEIGHT - 330], 0.5)
-    printText(splineImg, [math.degrees(angle_left), math.degrees(angle_right)], [x_ref + 340, GROUND_HEIGHT - 330], 0.5)
-    drawCSYS(splineImg, [x_ref + 235, GROUND_HEIGHT], 2, 1, 40, "(x0,y0)")
-    splineImg = cv2.rectangle(splineImg, [x_ref-45,GROUND_HEIGHT+65], [x_ref + 545,GROUND_HEIGHT-345], 0, 1)
-    draw_ellipse(splineImg, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, 50)
-    draw_ellipse(splineImg, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, 50)
-    splineImg = cv2.putText(splineImg, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, 0, 1, cv2.LINE_AA)
-    splineImg = cv2.putText(splineImg, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, 0, 1, cv2.LINE_AA)
-
-    GLOB_PATH = str(glob_path)
-    PERIOD = 50e-3  # [s]
-    BASE_FREQ = 1 / PERIOD  # [Hz]
-    AMPLITUDE = 10  # [mm]
-    ratio = GLOB_PATH[-4:-1]
-    frequency = BASE_FREQ * (int(ratio) / 100)
-    amplitude = (int(GLOB_PATH[-8:-6]) / 100) * AMPLITUDE
-    cv2.putText(splineImg, str('Frequency: ' + str("{:.2f}".format(frequency)) + ' [Hz]'), [x_ref - 40, GROUND_HEIGHT - 290], cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, 0, 1, cv2.LINE_AA)
-    cv2.putText(splineImg, str('Amplitude: ' + str(amplitude) + ' [mm]'),
-                [x_ref - 40, GROUND_HEIGHT - 270], cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, 0, 1, cv2.LINE_AA)
-    cv2.putText(splineImg, 'Frame number: %d' % int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]),
-                [x_ref - 40, GROUND_HEIGHT - 250], cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, 0, 1, cv2.LINE_AA)
-
-    cv2.line(splineImg, (x_obj, GROUND_HEIGHT), (x_obj, GROUND_HEIGHT + 43) , 0, thickness=1)
-    cv2.line(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT), (x_obj+w_obj-1, GROUND_HEIGHT + 43) , 0, thickness=1)
-    cv2.arrowedLine(splineImg, (x_obj, GROUND_HEIGHT + 40), (x_obj+w_obj-1, GROUND_HEIGHT+40), 0, 1,tipLength=0.03)
-    cv2.arrowedLine(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT+40), (x_obj, GROUND_HEIGHT + 40), 0, 1, tipLength=0.03)
-
+    # splineImg = cv2.bitwise_not(splineImg)
+    # signature(splineImg, [x_ref - 40, GROUND_HEIGHT - 330], 0.5)
+    # printText(splineImg, [math.degrees(angle_left), math.degrees(angle_right)], [x_ref + 340, GROUND_HEIGHT - 330], 0.5)
+    # drawCSYS(splineImg, [x_ref + 235, GROUND_HEIGHT], 2, 1, 40, "(x0,y0)")
+    # splineImg = cv2.rectangle(splineImg, [x_ref-45,GROUND_HEIGHT+65], [x_ref + 545,GROUND_HEIGHT-345], 0, 1)
+    # draw_ellipse(splineImg, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, 50)
+    # draw_ellipse(splineImg, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, 50)
+    # splineImg = cv2.putText(splineImg, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+    #                     0.5, 0, 1, cv2.LINE_AA)
+    # splineImg = cv2.putText(splineImg, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+    #                     0.5, 0, 1, cv2.LINE_AA)
+    #
+    # GLOB_PATH = str(glob_path)
+    # PERIOD = 50e-3  # [s]
+    # BASE_FREQ = 1 / PERIOD  # [Hz]
+    # AMPLITUDE = 10  # [mm]
+    # ratio = GLOB_PATH[-4:-1]
+    # frequency = BASE_FREQ * (int(ratio) / 100)
+    # amplitude = (int(GLOB_PATH[-8:-6]) / 100) * AMPLITUDE
+    # cv2.putText(splineImg, str('Frequency: ' + str("{:.2f}".format(frequency)) + ' [Hz]'), [x_ref - 40, GROUND_HEIGHT - 290], cv2.FONT_HERSHEY_SIMPLEX,
+    #             0.5, 0, 1, cv2.LINE_AA)
+    # cv2.putText(splineImg, str('Amplitude: ' + str(amplitude) + ' [mm]'),
+    #             [x_ref - 40, GROUND_HEIGHT - 270], cv2.FONT_HERSHEY_SIMPLEX,
+    #             0.5, 0, 1, cv2.LINE_AA)
+    # cv2.putText(splineImg, 'Frame number: %d' % int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]),
+    #             [x_ref - 40, GROUND_HEIGHT - 250], cv2.FONT_HERSHEY_SIMPLEX,
+    #             0.5, 0, 1, cv2.LINE_AA)
+    #
+    # cv2.line(splineImg, (x_obj, GROUND_HEIGHT), (x_obj, GROUND_HEIGHT + 43) , 0, thickness=1)
+    # cv2.line(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT), (x_obj+w_obj-1, GROUND_HEIGHT + 43) , 0, thickness=1)
+    # cv2.arrowedLine(splineImg, (x_obj, GROUND_HEIGHT + 40), (x_obj+w_obj-1, GROUND_HEIGHT+40), 0, 1,tipLength=0.03)
+    # cv2.arrowedLine(splineImg, (x_obj+w_obj-1, GROUND_HEIGHT+40), (x_obj, GROUND_HEIGHT + 40), 0, 1, tipLength=0.03)
+    # cv2.putText(splineImg, 'Contact zone length [px]: ' + str(x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]),
+    #             [x_obj + 100, GROUND_HEIGHT+35], cv2.FONT_HERSHEY_SIMPLEX,
+    #             0.4, 0, 1, cv2.LINE_AA)
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 550])
+    cv2.imwrite(str(path_to_save), img[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 550])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
             x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
@@ -258,7 +271,7 @@ def main():
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a10_f120z"
+    GLOB_PATH = "D:/praca_magisterska/a10_f139z"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
