@@ -9,9 +9,9 @@ all_exp_paths = glob.glob("D:/Magisterka/pomiary/*.csv")
 
 for path in all_exp_paths:
 
-    base_freq = 20 * int(path[-8:-5]) / 100
+    base_freq = 20 * int(path[-7:-5]) / 100
 
-    case_name = path[-13:-4]
+    case_name = path[-12:-4]
     df = pd.read_csv(path)
     time = df['Col0'].to_list()
     angle_left = df['Col1'].to_list()

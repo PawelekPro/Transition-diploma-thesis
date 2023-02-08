@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shutil
 import os
-from scipy.fft import fft, ifft, fftfreq
+from scipy.fft import fft, ifft, fftfreq, rfft
 
 def printText(image, value, org, fontScale):
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -136,8 +136,8 @@ def interpolate_spline(path):
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
 
-    path_to_save = 'D:/Magisterka/pomiary/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref:x_ref + 600])
+  #  path_to_save = 'D:/Magisterka/pomiary/conv/' + path[-23:]
+    #cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref:x_ref + 600])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
             x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
@@ -169,6 +169,8 @@ def main():
         shutil.rmtree(pomiary_path + '/conv')
         os.mkdir(pomiary_path + '/conv')
 
+        paths = []
+        frame = []
         GLOB_PATH = pomiary_path + '/' + case_name
         for path in Path(GLOB_PATH).glob("*.png"):
             frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
@@ -188,26 +190,31 @@ def main():
         time = [frame_/FRAME_RATE for frame_ in frame]
 
         # Csv writer
-        import pandas as pd
-        df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
-        df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
+        #import pandas as pd
+       # df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
+        #df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
 
         angle_left = np.array(angleLeft)
         angle_right = np.array(angleRight)
-        yf = fft(angle_left) * 0.02137
-        xf = fftfreq(len(angle_left),time[0])
-        ids = np.argwhere(yf > 5)
-        x = np.array(xf[ids])
-        y = np.array(yf[ids].real)
-        plt.plot(x, y, 'o')
+        yf = fft(angle_left)/len(angle_left)
+        yf = yf.real
+        xf = fftfreq(len(angle_left), time[0]*2)
+        ids = np.argwhere(yf > 0.2)
+        y = yf[ids]
+        x = xf[ids]
+
+
+        plt.plot(x[1:-1], y[1:-1], 'o')
         plt.grid()
         plt.xlabel('frequency [Hz]')
-        plt.ylabel('Amplitude [mm]')
-        plt.title('FFT analysis for case' + case_name)
+        plt.ylabel('Amplitude [deg]')
+        plt.title('FFT analysis of anlge left for case' + case_name)
+        plt.xlim(-200, 200)
+        plt.ylim(0, 10)
         plt.savefig(case_name + '_fft_plot.png')
         plt.clf()
 
-        make_gif(pomiary_path + '/conv', case_name)
+       # make_gif(pomiary_path + '/conv', case_name)
 
 if __name__ == "__main__":
     main()
