@@ -1,0 +1,126 @@
+\usepackage[T1]{fontenc}
+\usepackage[english,polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\selectlanguage{polish}
+\usepackage[left=2.0cm, right=2.0cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{latexsym}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{enumerate}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{float}
+\usetikzlibrary{matrix,shapes,arrows,positioning,chains,intersections}
+\usepackage{multirow}
+\usepackage{bm}
+\usepackage{smartdiagram}
+\usepackage{textcomp}
+%\usetikzlibrary{shapes,arrows}
+\usepackage{tikz}
+\usetikzlibrary{graphs}
+\usepackage{forest}
+\usetikzlibrary{automata,positioning} %to chyba nie dziala, mialo zawijac tekst w drzewku
+\usepackage{chngcntr} %to i nizej sa od numerowania rysunkow zgodnie z rozdzialem
+\counterwithin{figure}{section} 
+\usepackage{textcomp} %greckie literki w tekscie
+\usepackage{graphicx} %foty
+\usepackage{wrapfig} %zawijanie tekstu 
+\usepackage{enumerate} %prosta lista
+\usepackage[nottoc,numbib]{tocbibind} %biblio w ToC
+%\usepackage{tabu} %grubosc lini w tabeli
+\usepackage{chngcntr} %numerowanie tabeli zgodnie z numerem rozdzialu (to nizej tez)
+\counterwithin{table}{section} %numerowanie tabel zgodnie z numerem rozdzialu
+\usepackage[toc,page]{appendix} %anex
+\usepackage{adjustbox} %ograniczenie tabelek do wielkosci strony
+\usepackage{pdfpages}
+
+\newsavebox{\temp}
+\newlength{\tempwidth}
+\newlength{\tempheight}
+
+\newcommand{\addpdf}[1]{%
+    \sbox{\temp}{\includegraphics{#1}}%
+    \setlength{\tempwidth}{\widthof{\usebox{\temp}}}%
+    \setlength{\tempheight}{\heightof{\usebox{\temp}}}%
+
+    \ifthenelse{\tempwidth > \tempheight}
+        {\includepdf[fitpaper, templatesize={210mm}{297mm}, scale=0.92, landscape]{#1}}
+        {\includepdf[fitpaper, templatesize={210mm}{297mm}, scale=0.92]{#1}}%
+}
+
+\newcommand{\myTitle}{KAP_laboratorium_3}
+\newcommand{\myName}{Paweł Gilewicz}
+\newcommand{\myThesisType}{Sprawozdanie}
+
+% apply config to document settings
+\title{\myTitle}
+\author{\myName}
+\usepackage[unicode, hidelinks]{hyperref}
+\hypersetup{
+	pdftitle={\myTitle},
+	pdfauthor = {\myName},
+	pdfsubject={\myThesisType},
+	pdfproducer={LaTeX},
+	pdfcreator={pdflatex},
+	colorlinks=false
+}
+
+% MATRIX settings
+\usepackage{amsmath}
+\makeatletter
+\renewcommand*\env@matrix[1][\arraystretch]{%
+  \edef\arraystretch{#1}%
+  \hskip -\arraycolsep
+  \let\@ifnextchar\new@ifnextchar
+  \array{*\c@MaxMatrixCols c}}
+\makeatother
+\usepackage{mathtools}
+\usepackage{amsmath}
+
+% DOCUMENT settings
+% dot after section/subsection/subsubsection number
+\usepackage{secdot}
+\sectiondot{subsection}
+\sectiondot{subsubsection}
+
+\usepackage{tocloft} %kropki w spisie tresci
+\usepackage[labelsep=period]{caption}
+\usepackage{graphicx}
+\usepackage[font=small, % equivalent to 10 pt font
+			labelfont=bf, 
+			justification=justified, 
+			singlelinecheck=false]{caption} 
+\usepackage[justification=centering]{subcaption} % two images side by side captions
+\usepackage{booktabs} % pretty LaTeX tables
+\usepackage{siunitx} % units SI e.g. \SI{10}{\kilogram\per\meter\square}
+\usepackage{mathtools} % amsmath, symbols such as brackets, arrows, equation numbering only for referrenced eqs.
+%\usepackage[parfill]{parskip} % spacing between paragraphs instead of indent
+%\parfillskip 0pt plus 0.75\textwidth % get rid of widows at the end of paragraphs
+\frenchspacing % for "Polish" spaces after the sentence
+\usepackage{polski} % Polish rules of hyphenation
+\usepackage{dashrule} % for dotted lines in declarations page
+\usepackage{emptypage} % removes headers on empty pages
+\usepackage{colortbl}
+
+% FONT settings
+\usepackage[T1]{fontenc}
+\usepackage{helvet} % you can change to 'helvet' for Helvetica clone, 'uarial' for Arial clone, 'lmodern' for Latin Modern
+\renewcommand{\familydefault}{\sfdefault} % change font to sans serif
+\usepackage{amsfonts} % mathematical fonts
+\usepackage{inconsolata} % monospaced font in urls and \texttt
+%\usepackage{url}
+%\urlstyle{same}
+
+% DEBUG
+\usepackage{lipsum}
+\usepackage{etoolbox} % removes page number in table of contents
+\patchcmd{\chapter}{plain}{empty}{}{}
+\usepackage{slantsc}
+
+\usepackage{fancyhdr}%numerki do dwustronnego
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[LE,RO]{\thepage}
+\pagestyle{fancy}
+
