@@ -28,7 +28,7 @@ if __name__ == "__main__":
     plt.show()
 
     col1 = 'curvePointsValues'
-    data = pd.DataFrame({col1: y})
+    data = pd.DataFrame({col1: y_full_scope})
     data.to_csv(str(GLOB_PATH + '/testCurve.csv'), index=False, header=False)
 
 
