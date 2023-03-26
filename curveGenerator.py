@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 
 if __name__ == "__main__":
-    GLOB_PATH = "D:/praca_magisterska/LinMot_user"
+    GLOB_PATH = "D:/praca_magisterska/LinMot_user_manual"
     amplitude_ = 1
     lambda_ = 0.3
-    ang_freq_ = 4
+    ang_freq_ = 3
     transient_scope = 3 # Note: transient_scope must be equal to ang_freq?
     steady_scope = 20
 
