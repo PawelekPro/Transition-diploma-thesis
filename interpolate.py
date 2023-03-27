@@ -3,6 +3,8 @@ from pathlib import Path
 from PIL import Image
 import glob
 import math
+
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import shutil
@@ -77,11 +79,11 @@ def drawCSYS(image, org, thickness, scale, color, optional_text=""):
     return image
 
 
-def interpolate_spline(path, glob_path):
+def interpolate_spline(path, frame):
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
 
     """BINARY TRESHOLDING"""
-    _, thresh = cv2.threshold(img, 30, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(img, 20, 255, cv2.THRESH_BINARY)
     thresh = 255 - thresh
 
     thresh_reference = np.zeros_like(img)
@@ -93,7 +95,7 @@ def interpolate_spline(path, glob_path):
     thresh_reference[0:image_cutting_size, :] = thresh[0:image_cutting_size, :]
     thresh_object[image_cutting_size:len(thresh), :] = thresh[image_cutting_size:len(thresh), :]
 
-    GROUND_HEIGHT = 865
+    GROUND_HEIGHT = 855
 
     # cutting out everything below the plate
     thresh_object[GROUND_HEIGHT + 1:len(output_object), :] = 0
@@ -160,12 +162,12 @@ def interpolate_spline(path, glob_path):
     # plt.figure(figsize=(16, 7))
     # x_approx_left = np.linspace(min(y_left), max(y_left), 100)
     # x_approx_right = np.linspace(min(y_right), max(y_right), 100)
-    # plt.plot(x, y, marker='.', color='dodgerblue', label='Droplet shape (discrete)', markersize='8')
-    # plt.plot(p_left(x_approx_left), x_approx_left, label='Left polynomial', color='red', linewidth=2)
-    # plt.plot(p_right(x_approx_right), x_approx_right, label='Right polynomial', color='black', linewidth=2)
+    # plt.plot(x, y, marker='.', color='dodgerblue', label='Droplet shape (discrete)', markersize='10')
+    # plt.plot(p_left(x_approx_left), x_approx_left, label='Left polynomial', color='red', linewidth=3)
+    # plt.plot(p_right(x_approx_right), x_approx_right, label='Right polynomial', color='black', linewidth=3)
     # plt.ylim(max(y), 720)
     # plt.xlim(min(x) - 20, max(x) + 20)
-    # plt.plot([min(x) - 20, max(x)],[820, 820], linewidth=1, color='black')
+    # plt.plot([min(x) - 20, max(x)],[820, 820], linewidth=1.5, color='black')
     # plt.legend(loc="upper right")
     # plt.xlabel("X coordinate [pixels]", size=14)
     # plt.ylabel("Y coordinate [pixels]", size=14)
@@ -187,24 +189,24 @@ def interpolate_spline(path, glob_path):
 
     # draw tangent lines
     line_len = 150
-    line_thickness = 2
+    line_thickness = 1
 
-    img = cv2.imread(path, cv2.IMREAD_COLOR)
-    img[GROUND_HEIGHT, :] = 125
+    # img = cv2.imread(path, cv2.IMREAD_COLOR)
+    splineImg[GROUND_HEIGHT, :] = 125
     p1 = np.array([x_left[np.argmax(y_left)], max(y_left)])
     p2 = p1 + np.array([line_len * np.cos(angle_left), -line_len * np.sin(angle_left)])
-    cv2.line(img, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), (0,0,255), thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
 
     p1 = np.array([x_right[np.argmax(y_right)], max(y_right)])
     p2 = p1 + np.array([-line_len * np.cos(angle_right), -line_len * np.sin(angle_right)])
-    cv2.line(img, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), (0,0,255), thickness=line_thickness)
+    cv2.line(splineImg, (p1[0], p1[1]), (round(p2[0]), round(p2[1])), 255, thickness=line_thickness)
 
-    draw_ellipse(img, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, (0,0,255))
-    draw_ellipse(img, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, (0,0,255))
-    img = cv2.putText(img, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (255,255,255), 1, cv2.LINE_AA)
-    img = cv2.putText(img, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (255,255,255), 1, cv2.LINE_AA)
+    # draw_ellipse(img, (x_obj, GROUND_HEIGHT), (55, 55), 0, -math.degrees(angle_left), 0, (0,0,255))
+    # draw_ellipse(img, (x_obj+w_obj, GROUND_HEIGHT), (55, 55), -180, math.degrees(angle_right), 0, (0,0,255))
+    # img = cv2.putText(img, 'L', (x_obj+25, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+    #                     0.5, (255,255,255), 1, cv2.LINE_AA)
+    # img = cv2.putText(img, 'P', (x_obj+w_obj-38, GROUND_HEIGHT-8), cv2.FONT_HERSHEY_SIMPLEX,
+    #                     0.5, (255,255,255), 1, cv2.LINE_AA)
 
     # printText(splineImg, [math.degrees(angle_left),math.degrees(angle_right)], [20, GROUND_HEIGHT - 320], 0.5)
     # test_img = cv2.bitwise_not(splineImg)
@@ -249,10 +251,10 @@ def interpolate_spline(path, glob_path):
     #             0.4, 0, 1, cv2.LINE_AA)
 
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), img[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 550])
+    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 530])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
-            x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)]]
+            x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)], x_ref]
 
 
 def make_gif(frame_folder):
@@ -264,14 +266,14 @@ def make_gif(frame_folder):
 
 
 def main():
-    FRAME_RATE = 5400
+    FRAME_RATE = 500
     frame = []
     paths = []
 
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/a10_f139z"
+    GLOB_PATH = "D:/praca_magisterska/A1_damp_FPS500_1024x896_05"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
@@ -279,24 +281,44 @@ def main():
     angleLeft = []
     angleRight = []
     contactLength = []
+    x_ref = []
+    angleLeft_dtheta = []
+    angleRight_dtheta = []
 
     print("\nConverting images:")
     for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
-        if frame[i] % 2 == 0 and frame[i] < 2002:
-            angleLeft.append(interpolate_spline(str(paths[i]), GLOB_PATH)[0])
-            angleRight.append(interpolate_spline(str(paths[i]), GLOB_PATH)[1])
-            contactLength.append(interpolate_spline(str(paths[i]), GLOB_PATH)[2])
+        if frame[i] % 1 == 0 and frame[i] < 6200:
+            ret = interpolate_spline(str(paths[i]), frame[i])
+            angleLeft.append(ret[0])
+            angleRight.append(ret[1])
+            contactLength.append(ret[2])
+            x_ref.append(ret[3])
 
+    # for i in range(len(angleLeft)):
+    #     if len(angleLeft) - 1 > i:
+    #         angleLeft_dtheta.append((angleLeft[i+1] - angleLeft[i])/2)
+    #
     time = [frame_ / FRAME_RATE for frame_ in frame]
+
+    # plt.figure(figsize=(20, 10))
+    # plt.plot(time[1:len(angleLeft)], angleLeft_dtheta, color='teal')
+    # plt.xlabel('time [s]', size=16)
+    # plt.ylabel('\u03B8{} - \u03B8{} [deg]'.format(get_sub('i+1'), get_sub('i')), size=16)
+    # plt.ylim([-10, 10])
+    # plt.grid()
+    # plt.savefig('D:/praca_magisterska/workspace/polynomial_deg2_diff' + '.png', dpi=100)
+    # plt.show()
+
+    x_damp = [x - x_ref[0] for x in x_ref]
 
     # Csv writer
     import pandas as pd
-    df = pd.DataFrame(list(zip(*[time[1:len(frame):2], angleLeft, angleRight, contactLength]))).add_prefix('Col')
-    df.to_csv(str(GLOB_PATH[-9:] + '.csv'), index=False)
+    df = pd.DataFrame(list(zip(*[time[1:len(frame)], angleLeft, angleRight, contactLength, x_damp]))).add_prefix('Col')
+    df.to_csv(str(GLOB_PATH + '.csv'), index=False)
 
 
 if __name__ == "__main__":
     main()
-    make_gif("D:/praca_magisterska/conv")
+    # make_gif("D:/praca_magisterska/conv")
 
 # TODO: view calibration

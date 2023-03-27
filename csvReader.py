@@ -18,7 +18,7 @@ def plotIMG(path):
     rightAngle = df['Col2'].to_list()
     contactLength = df['Col3'].to_list()
     x_ref = df['Col4'].to_list()
-    avgScope = 5
+    avgScope = 10
     avgContactLength = []
     i = 0
     # Uśrednianie długości strefy kontaktu według @param avgScope ostatnich punktów dyskretnych
@@ -27,17 +27,17 @@ def plotIMG(path):
         bufor_avarage = round(sum(bufor) / avgScope, 2)
         avgContactLength.append(bufor_avarage)
         i += 1
-
+    plot_scope = [800, 4200]
     dContactLength = [contactLength_ - contactLength[0] for contactLength_ in avgContactLength]
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, gridspec_kw={'height_ratios': [4, 2, 1]}, sharex=True, figsize=(20, 8))
-    line2, = ax1.plot(time[0:1000], leftAngle[0:1000], label='Left angle', color='navy')
-    line3, = ax2.plot(time[0:1000], x_ref[0:1000], label='Actual position', color='slategray')
-    # line2, = ax1.plot(time[0:1000], rightAngle[0:1000], label='Right angle', color='deepskyblue')
+    # line2, = ax1.plot(time[0:plot_scope], leftAngle[0:plot_scope], label='Left angle', color='navy')
+    line3, = ax2.plot(time[plot_scope[0]:plot_scope[1]], x_ref[plot_scope[0]:plot_scope[1]], label='Actual position', color='slategray')
+    line2, = ax1.plot(time[plot_scope[0]:plot_scope[1]], rightAngle[plot_scope[0]:plot_scope[1]], label='Right angle', color='deepskyblue')
 
-    line1, = ax1.plot(time[0:1000], [leftAngle[0] for x in leftAngle][0:1000], color='navy', linestyle=(0, (5, 5)), linewidth=1, label='Static angle')
+    line1, = ax1.plot(time[plot_scope[0]:plot_scope[1]], [leftAngle[0] for x in leftAngle][plot_scope[0]:plot_scope[1]], color='navy', linestyle=(0, (5, 5)), linewidth=1, label='Static angle')
 
-    line4, = ax3.plot(time[0:1000], [int(contactLength_) for contactLength_ in dContactLength][0:1000],
+    line4, = ax3.plot(time[plot_scope[0]:plot_scope[1]], [int(contactLength_) for contactLength_ in dContactLength][plot_scope[0]:plot_scope[1]],
                       label='Length of droplet contact zone', color='deepskyblue', linewidth=1)
     ax1.legend(handles=[line1, line2])
     ax1.grid(visible=True, which='both', linestyle='--', linewidth='0.25')
@@ -48,7 +48,7 @@ def plotIMG(path):
     ax3.grid(visible=True, which='both', linestyle='--', linewidth='0.25')
     ax2.set(xlabel="time [s]", ylabel="Position [pixels]")
     ax3.legend(handles=[line4])
-    ax3.set_ylim([-5, 5])
+    ax3.set_ylim([-5, max(dContactLength) + 5])
 
     ratio = GLOB_PATH[-7:-5]
     frequency = 9.9000
@@ -57,7 +57,7 @@ def plotIMG(path):
         str('No. measurement: 1    ' + 'Frequency: ' + str("{:.2f}".format(frequency)) + '[Hz]    ' + 'Amplitude: ' + str(amplitude) + '[mm]'))
 
     # plt.show()
-    fig.savefig(str(GLOB_PATH[0:-4] + '_left.png'), dpi=100)
+    fig.savefig(str(GLOB_PATH[0:-4] + '_right.png'), dpi=100)
 
 
 if __name__ == "__main__":
