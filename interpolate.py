@@ -79,12 +79,39 @@ def drawCSYS(image, org, thickness, scale, color, optional_text=""):
     return image
 
 
+def use_filter(img, contour, init_height):
+    # Initialize min and max x-coordinates with the first point
+    min_x = contour[0][0][0]
+    max_x = contour[0][0][0]
+
+    # Iterate over the remaining points and update min and max x-coordinates
+    for point in contour:
+        x = point[0][0]
+        if x < min_x:
+            min_x = x
+        if x > max_x:
+            max_x = x
+
+    # # Now you have the min and max x-coordinates
+    # print("Minimum x-coordinate:", min_x)
+    # print("Maximum x-coordinate:", max_x)
+
+    height = init_height
+    right_corn_coord = (max_x - 80, height - 50)
+
+    cv2.rectangle(img, (min_x + 80, init_height), right_corn_coord, 255, -1)
+
+
 def interpolate_spline(path, frame):
-    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(path, cv2.COLOR_BGR2GRAY)
 
     """BINARY TRESHOLDING"""
-    _, thresh = cv2.threshold(img, 20, 255, cv2.THRESH_BINARY)
+    col_range = [25, 255]
+    _, thresh = cv2.threshold(img, col_range[0], col_range[1], cv2.THRESH_BINARY)
     thresh = 255 - thresh
+
+    # cv2.imshow('cos', thresh)
+    # cv2.waitKey(0)
 
     thresh_reference = np.zeros_like(img)
     thresh_object = np.zeros_like(img)
@@ -95,7 +122,7 @@ def interpolate_spline(path, frame):
     thresh_reference[0:image_cutting_size, :] = thresh[0:image_cutting_size, :]
     thresh_object[image_cutting_size:len(thresh), :] = thresh[image_cutting_size:len(thresh), :]
 
-    GROUND_HEIGHT = 855
+    GROUND_HEIGHT = 475
 
     # cutting out everything below the plate
     thresh_object[GROUND_HEIGHT + 1:len(output_object), :] = 0
@@ -103,17 +130,23 @@ def interpolate_spline(path, frame):
     contours_reference, _ = cv2.findContours(thresh_reference, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours_object, _ = cv2.findContours(thresh_object, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-    if len(contours_reference) != 0:
+    filter_matrix = np.zeros_like(output_object)
+    if len(contours_reference) > 0:
         # find the biggest contour (c) by the area
         c_reference = max(contours_reference, key=cv2.contourArea)
         c_object = max(contours_object, key=cv2.contourArea)
-        cv2.drawContours(output_object, c_object, -1, 255, 1)
-        cv2.drawContours(output_reference, c_reference, -1, 255, 1)
+        cv2.drawContours(filter_matrix, c_object, -1, 255, 1)
+        cv2.fillPoly(filter_matrix, pts=[c_object], color=(255, 255, 255))
+        use_filter(filter_matrix, c_object, GROUND_HEIGHT)
+        cont_filtered, _ = cv2.findContours(filter_matrix, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        cv2.drawContours(output_object, cont_filtered, -1, 255, 1)
         if len(contours_object) != 0:
             x_obj, y_obj, w_obj, h_obj = cv2.boundingRect(c_object)
 
-    x_ref, y_ref, w_ref, h_ref = cv2.boundingRect(c_reference)
+    # cv2.imshow('obj', output_object)
+    # cv2.waitKey(0)
 
+    CrossSectionArea = cv2.contourArea(c_object)
     # Drawing line which represents plate (ground)
     output_object[GROUND_HEIGHT, :] = 125
 
@@ -137,9 +170,10 @@ def interpolate_spline(path, frame):
         splineImg = cv2.circle(splineImg, (x_select[i], y_select[i]), radius=1, color=255, thickness=-1)
 
     checkImg[GROUND_HEIGHT, :] = 125
+    approx_scope = 30
 
     # cutoff points below y = 830 for creating approximation polynomials
-    y_cutoff_ids = np.where(y_select > 820)
+    y_cutoff_ids = np.where(y_select > GROUND_HEIGHT - approx_scope)
     x_split = x_select[np.argmin(y_select)]
     y_select = y_select[y_cutoff_ids]
     x_select = x_select[y_cutoff_ids]
@@ -185,7 +219,7 @@ def interpolate_spline(path, frame):
     # draw contour
 
     splineImg[GROUND_HEIGHT, :] = 125
-    cv2.drawContours(splineImg, contours_object, -1, 255, 1)
+    cv2.drawContours(splineImg, cont_filtered, -1, 255, 1)
 
     # draw tangent lines
     line_len = 150
@@ -250,11 +284,15 @@ def interpolate_spline(path, frame):
     #             [x_obj + 100, GROUND_HEIGHT+35], cv2.FONT_HERSHEY_SIMPLEX,
     #             0.4, 0, 1, cv2.LINE_AA)
 
+
+    # cv2.imshow('test', splineImg)
+    # cv2.waitKey(0)
     path_to_save = 'D:/praca_magisterska/conv/' + path[-23:]
-    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 530])
+    # cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, x_ref - 50:x_ref + 530])
+    cv2.imwrite(str(path_to_save), splineImg[GROUND_HEIGHT - 350:GROUND_HEIGHT + 70, :])
 
     return [math.degrees(angle_left), math.degrees(angle_right),
-            x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)], x_ref]
+            x_right[np.argmax(y_right)] - x_left[np.argmax(y_left)], CrossSectionArea]
 
 
 def make_gif(frame_folder):
@@ -266,14 +304,14 @@ def make_gif(frame_folder):
 
 
 def main():
-    FRAME_RATE = 500
+    FRAME_RATE = 2000
     frame = []
     paths = []
 
     shutil.rmtree('D:/praca_magisterska/conv')
     os.mkdir('D:/praca_magisterska/conv')
 
-    GLOB_PATH = "D:/praca_magisterska/A1_damp_FPS500_1024x896_05"
+    GLOB_PATH = "D:/praca_magisterska/A150_F25_T5_001"
     for path in Path(GLOB_PATH).glob("*.png"):
         frame.append(int(str(path)[-9] + str(path)[-8] + str(path)[-7] + str(path)[-6] + str(path)[-5]))
         paths.append(str(path))
@@ -284,19 +322,20 @@ def main():
     x_ref = []
     angleLeft_dtheta = []
     angleRight_dtheta = []
+    crossSectionArea = []
 
     print("\nConverting images:")
     for i in tqdm(range(len(frame)), bar_format='{l_bar}{bar:40}{r_bar}{bar:-10b}'):
-        if frame[i] % 1 == 0 and frame[i] < 6200:
+        if frame[i] % 1 == 0 and frame[i] < 10900:
             ret = interpolate_spline(str(paths[i]), frame[i])
             angleLeft.append(ret[0])
             angleRight.append(ret[1])
             contactLength.append(ret[2])
-            x_ref.append(ret[3])
+            crossSectionArea.append(ret[3])
 
     # for i in range(len(angleLeft)):
     #     if len(angleLeft) - 1 > i:
-    #         angleLeft_dtheta.append((angleLeft[i+1] - angleLeft[i])/2)
+    #         angleLeft_dtheta.append((angleLeft[i+1] - angleLeft[i]))
     #
     time = [frame_ / FRAME_RATE for frame_ in frame]
 
@@ -309,11 +348,11 @@ def main():
     # plt.savefig('D:/praca_magisterska/workspace/polynomial_deg2_diff' + '.png', dpi=100)
     # plt.show()
 
-    x_damp = [x - x_ref[0] for x in x_ref]
+    # x_damp = [x - x_ref[0] for x in x_ref]
 
     # Csv writer
     import pandas as pd
-    df = pd.DataFrame(list(zip(*[time[1:len(frame)], angleLeft, angleRight, contactLength, x_damp]))).add_prefix('Col')
+    df = pd.DataFrame(list(zip(*[time[1:len(frame)], angleLeft, angleRight, contactLength, crossSectionArea]))).add_prefix('Col')
     df.to_csv(str(GLOB_PATH + '.csv'), index=False)
 
 
